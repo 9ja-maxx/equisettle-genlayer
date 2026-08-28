@@ -111,13 +111,14 @@ export default function App() {
     clearMessages();
     if (!account) return setErrorMessage('Connect your wallet first.');
     if (!sellerAddr) return setErrorMessage('Seller address is required.');
-    if (!amountGen || parseFloat(amountGen) <= 0) return setErrorMessage('Enter a valid positive GEN amount.');
+    const wei = parseGenToWei(amountGen);
+    if (!amountGen || wei <= 0n) return setErrorMessage('Enter a valid positive GEN amount.');
 
     setLoading(true);
     try {
       const writer = getWriteClient(account);
-      const wei = parseGenToWei(amountGen);
-      const deadlineSecs = BigInt(Math.floor(Date.now() / 1000) + parseInt(deadlineHrs) * 3600);
+      const nowSeconds = BigInt(Date.now()) / 1000n;
+      const deadlineSecs = nowSeconds + BigInt(parseInt(deadlineHrs)) * 3600n;
 
       const txHash = await writer.writeContract({
         address: CONTRACT_ADDRESS,
