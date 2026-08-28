@@ -80,16 +80,12 @@ export const parseJsonMaybe = (res) => {
 export const waitForTx = async (client, hash) => {
   if (!hash) return null;
   if (client && typeof client.waitForTransactionReceipt === 'function') {
-    try {
-      return await client.waitForTransactionReceipt({
-        hash,
-        status: 'FINALIZED',
-        retries: 30,
-        interval: 2000,
-      });
-    } catch (err) {
-      console.warn('waitForTransactionReceipt error:', err);
-    }
+    return await client.waitForTransactionReceipt({
+      hash,
+      status: 'FINALIZED',
+      retries: 40,
+      interval: 2500,
+    });
   }
   return hash;
 };

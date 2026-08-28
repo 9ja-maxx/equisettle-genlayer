@@ -783,6 +783,42 @@ export default function App() {
           )}
         </div>
       </div>
+      {loading && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          background: 'rgba(0,0,0,0.65)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 9999,
+          color: '#fff',
+        }}>
+          <div style={{
+            background: '#fcfaf6',
+            padding: '2.5rem',
+            border: '2px solid var(--accent-color)',
+            color: 'var(--text-primary)',
+            textAlign: 'center',
+            maxWidth: '450px',
+            width: '90%',
+          }}>
+            <RefreshCw className="spin" size={48} color="var(--accent-color)" style={{ margin: '0 auto 1.5rem' }} />
+            <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.5rem', marginBottom: '0.75rem', color: 'var(--accent-color)' }}>
+              Transaction Processing
+            </h3>
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '1.5rem', lineHeight: '1.5' }}>
+              Confirm the action in MetaMask. The app is currently waiting for validation and finalization on the GenLayer consensus network.
+            </p>
+            <div className="loading-dots" style={{ fontSize: '0.85rem', fontStyle: 'italic', color: 'var(--text-secondary)' }}>
+              Confirming transaction onchain<span>.</span><span>.</span><span>.</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
