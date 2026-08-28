@@ -129,6 +129,7 @@ npm run dev
 
 ## Live Deployment (Bradbury & StudioNet)
 
+* **Live App URL:** [https://equisettle-alpha.vercel.app/](https://equisettle-alpha.vercel.app/)
 * **Deployed Address:** `0x3feFbDD5FAf71fA417a6AE01E86AC11D5778Fa19`
 * **Network:** StudioNet
 
