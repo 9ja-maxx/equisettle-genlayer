@@ -129,8 +129,11 @@ npm run dev
 
 ## Live Deployment (Bradbury & StudioNet)
 
+* **Deployed Address:** `0x3feFbDD5FAf71fA417a6AE01E86AC11D5778Fa19`
+* **Network:** StudioNet
+
 To configure the live app for your deployed contract, set your contract address in `frontend/.env`:
 ```env
-VITE_CONTRACT_ADDRESS=0xYourDeployedAddress
+VITE_CONTRACT_ADDRESS=0x3feFbDD5FAf71fA417a6AE01E86AC11D5778Fa19
 ```
 If no address is configured, the application runs in sandbox demo mode with write actions disabled.
