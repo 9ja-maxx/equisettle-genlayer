@@ -478,7 +478,7 @@ export default function App() {
 
             <div className="tx-list">
               {transactions.length === 0 ? (
-                <p style={{ textAlign: 'center', color: var(--text-secondary), fontStyle: 'italic', padding: '1rem 0' }}>
+                <p style={{ textAlign: 'center', color: 'var(--text-secondary)', fontStyle: 'italic', padding: '1rem 0' }}>
                   No transactions found.
                 </p>
               ) : (
