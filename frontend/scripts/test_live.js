@@ -32,6 +32,18 @@ async function main() {
   } catch (err) {
     console.error(">>> ERROR reading get_count:", err.message || err);
   }
+
+  console.log("Calling view method 'list_transactions'...");
+  try {
+    const list = await client.readContract({
+      address: CONTRACT_ADDRESS,
+      functionName: 'list_transactions',
+      args: [""]
+    });
+    console.log(">>> SUCCESS! Transactions list:", list);
+  } catch (err) {
+    console.error(">>> ERROR reading list_transactions:", err.message || err);
+  }
 }
 
 main();
