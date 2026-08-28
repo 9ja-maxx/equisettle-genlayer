@@ -239,14 +239,14 @@ def test_transfer_failure_then_retry(direct_vm, direct_deploy, direct_accounts, 
     contract.submit_seller_evidence(tx_id, ["https://example.com/proof.jpg"], "Item delivered.")
 
     # Mock the public gl.get_contract_at method to simulate EOA transfer failures
-    import genlayer as gl
+    import genlayer.gl as gl_module
     def failing_get_contract_at(addr):
         class FailedContract:
             def emit_transfer(self, value):
                 raise Exception("Simulated transfer failure")
         return FailedContract()
 
-    monkeypatch.setattr(gl, "get_contract_at", failing_get_contract_at)
+    monkeypatch.setattr(gl_module, "get_contract_at", failing_get_contract_at)
 
     sim_installMocks(
         vm,
