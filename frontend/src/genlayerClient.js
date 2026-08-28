@@ -29,11 +29,21 @@ export const getWriteClient = (account) => {
   if (typeof window === 'undefined' || !window.ethereum) {
     throw new Error('MetaMask is required to sign EquiSettle transactions.');
   }
-  return createClient({
+  const client = createClient({
     chain: studionet,
     account,
     provider: window.ethereum,
   });
+
+  const originalWrite = client.writeContract;
+  client.writeContract = async (args) => {
+    return await originalWrite.call(client, {
+      gas: 5000000n, // Default high gas limit override to prevent intrinsic gas too low issues in MetaMask/viem
+      ...args,
+    });
+  };
+
+  return client;
 };
 
 export const parseJsonMaybe = (res) => {
