@@ -29,32 +29,30 @@ export const getWriteClient = (account) => {
   if (typeof window === 'undefined' || !window.ethereum) {
     throw new Error('MetaMask is required to sign EquiSettle transactions.');
   }
-  const client = createClient({
-    chain: studionet,
-    account,
-    provider: window.ethereum,
+
+  // Hotfix: Proxy window.ethereum to override the gas limit parameter for eth_sendTransaction.
+  // This is required because genlayer-js copies methods by spreading/extending them internally,
+  // making instance-level overrides on the returned client ineffective inside library closures.
+  const customProvider = new Proxy(window.ethereum, {
+    get(target, prop, receiver) {
+      if (prop === 'request') {
+        return async (args) => {
+          if (args && args.method === 'eth_sendTransaction' && args.params && args.params[0]) {
+            args.params[0].gas = '0x1e8480'; // Force 2,000,000 gas limit in hex to override library's hardcoded 21,000 gas
+          }
+          return await target.request(args);
+        };
+      }
+      const val = Reflect.get(target, prop, receiver);
+      return typeof val === 'function' ? val.bind(target) : val;
+    }
   });
 
-  // Hotfix: Overwrite prepareTransactionRequest to bypass genlayer-js hardcoded 21,000 gas limit
-  const originalPrepare = client.prepareTransactionRequest;
-  client.prepareTransactionRequest = async (args) => {
-    const req = await originalPrepare.call(client, args);
-    return {
-      ...req,
-      gas: 2000000n,
-    };
-  };
-
-  // Hotfix: Intercept the RPC call to force MetaMask to use a high gas limit for state-changing contract calls
-  const originalRequest = client.request;
-  client.request = async (args) => {
-    if (args && args.method === 'eth_sendTransaction' && args.params && args.params[0]) {
-      args.params[0].gas = '0x1e8480'; // 2,000,000 in hex representation
-    }
-    return await originalRequest.call(client, args);
-  };
-
-  return client;
+  return createClient({
+    chain: studionet,
+    account,
+    provider: customProvider,
+  });
 };
 
 export const parseJsonMaybe = (res) => {
