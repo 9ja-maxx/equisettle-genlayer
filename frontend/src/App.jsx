@@ -60,7 +60,7 @@ export default function App() {
   };
 
   const fetchTransactions = useCallback(async () => {
-    const reader = getReadClient();
+    const reader = getReadClient(account);
     if (!reader) return;
     try {
       const rawList = await reader.readContract({
@@ -73,11 +73,11 @@ export default function App() {
     } catch (err) {
       console.error('Failed to list transactions:', err);
     }
-  }, [statusFilter]);
+  }, [statusFilter, account]);
 
   const fetchTxDetail = useCallback(async (txId) => {
     if (!txId) return;
-    const reader = getReadClient();
+    const reader = getReadClient(account);
     if (!reader) return;
     try {
       const rawDetail = await reader.readContract({
@@ -90,7 +90,7 @@ export default function App() {
     } catch (err) {
       console.error('Failed to fetch tx detail:', err);
     }
-  }, []);
+  }, [account]);
 
   useEffect(() => {
     fetchTransactions();

@@ -16,9 +16,12 @@ export const hasContractAddress = Boolean(
 
 export const studionet = chains.studionet;
 
-export const getReadClient = () => {
+export const getReadClient = (accountAddress) => {
   try {
-    return createClient({ chain: studionet });
+    return createClient({
+      chain: studionet,
+      account: accountAddress || '0x90F8bf6A479f320ead074411a4B0e7944Ecf8239', // Fallback to satisfy RPC 'from' requirement
+    });
   } catch (err) {
     console.warn('Read client init failed:', err);
     return null;
