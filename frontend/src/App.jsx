@@ -337,11 +337,20 @@ export default function App() {
           <h1>EquiSettle</h1>
           <p className="tagline">Symmetric Two-Party AI Escrow & Cooperative Settlement</p>
         </div>
-        <div>
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
           {account ? (
-            <div className="wallet-badge connected">
-              Connected: {account.slice(0, 6)}...{account.slice(-4)}
-            </div>
+            <>
+              <div className="wallet-badge connected">
+                Connected: {account.slice(0, 6)}...{account.slice(-4)}
+              </div>
+              <button 
+                className="btn-secondary" 
+                onClick={() => setAccount('')} 
+                style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
+              >
+                Disconnect
+              </button>
+            </>
           ) : (
             <button className="btn-primary" onClick={connectWallet}>
               Connect Wallet
