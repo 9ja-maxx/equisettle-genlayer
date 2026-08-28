@@ -38,7 +38,17 @@ export const getWriteClient = (account) => {
       if (prop === 'request') {
         return async (args) => {
           if (args && args.method === 'eth_sendTransaction' && args.params && args.params[0]) {
-            args.params[0].gas = '0x1e8480'; // Force 2,000,000 gas limit in hex to override library's hardcoded 21,000 gas
+            const modifiedParams = [
+              {
+                ...args.params[0],
+                gas: '0x5f5e100', // Set virtual gas limit to 100,000,000 (0x5f5e100) to satisfy GenLayer validator minimums
+              },
+              ...args.params.slice(1)
+            ];
+            return await target.request({
+              ...args,
+              params: modifiedParams,
+            });
           }
           return await target.request(args);
         };
