@@ -120,7 +120,7 @@ class EquiSettle(gl.Contract):
             tx.verdict_reason += " (Transfer failed, retryable)"
         return tx
 
-    @gl.public.write
+    @gl.public.write.payable
     def create_escrow(self, seller: Address, description: str, deadline: u256) -> str:
         """
         Buyers call this to open an escrow and lock native GEN.
