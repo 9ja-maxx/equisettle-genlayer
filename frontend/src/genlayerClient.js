@@ -35,12 +35,23 @@ export const getWriteClient = (account) => {
     provider: window.ethereum,
   });
 
-  const originalWrite = client.writeContract;
-  client.writeContract = async (args) => {
-    return await originalWrite.call(client, {
-      gas: 5000000n, // Default high gas limit override to prevent intrinsic gas too low issues in MetaMask/viem
-      ...args,
-    });
+  // Hotfix: Overwrite prepareTransactionRequest to bypass genlayer-js hardcoded 21,000 gas limit
+  const originalPrepare = client.prepareTransactionRequest;
+  client.prepareTransactionRequest = async (args) => {
+    const req = await originalPrepare.call(client, args);
+    return {
+      ...req,
+      gas: 2000000n,
+    };
+  };
+
+  // Hotfix: Intercept the RPC call to force MetaMask to use a high gas limit for state-changing contract calls
+  const originalRequest = client.request;
+  client.request = async (args) => {
+    if (args && args.method === 'eth_sendTransaction' && args.params && args.params[0]) {
+      args.params[0].gas = '0x1e8480'; // 2,000,000 in hex representation
+    }
+    return await originalRequest.call(client, args);
   };
 
   return client;
