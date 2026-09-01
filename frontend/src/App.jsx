@@ -567,8 +567,8 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Cooperative Bypass Actions (Only for PENDING or DISPUTED) */}
-              {!selectedTx.settled && (selectedTx.status === 'PENDING_DELIVERY' || selectedTx.status === 'DISPUTED' || selectedTx.status === 'SUBMITTED') && (
+              {/* Cooperative Bypass Actions */}
+              {!selectedTx.settled && (selectedTx.status === 'PENDING_DELIVERY' || selectedTx.status === 'DISPUTED' || selectedTx.status === 'SUBMITTED' || selectedTx.status === 'INCONCLUSIVE') && (
                 <div className="detail-row">
                   <div className="detail-label">Cooperative Settlement (AI Bypass)</div>
                   <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
@@ -586,6 +586,16 @@ export default function App() {
                       </button>
                     )}
                   </div>
+                </div>
+              )}
+
+              {/* Inconclusive Adjudication Notice */}
+              {selectedTx.status === 'INCONCLUSIVE' && (
+                <div className="detail-row" style={{ background: '#faf5ff', border: '1px solid #d8b4fe', padding: '1rem' }}>
+                  <div className="detail-label" style={{ color: '#6b21a8' }}>Inconclusive AI Adjudication</div>
+                  <p style={{ fontSize: '0.8rem', color: '#581c87', margin: '0.25rem 0' }}>
+                    The validator consensus returned confidence below 60%. Repeated automated rerolls are blocked to prevent forced settlement. Please settle cooperatively or claim a timeout refund once the deadline expires.
+                  </p>
                 </div>
               )}
 
@@ -619,7 +629,7 @@ export default function App() {
               )}
 
               {/* Time expiration claim */}
-              {!selectedTx.settled && isExpired(selectedTx.deadline) && (selectedTx.status === 'PENDING_DELIVERY' || selectedTx.status === 'DISPUTED') && (
+              {!selectedTx.settled && isExpired(selectedTx.deadline) && (selectedTx.status === 'PENDING_DELIVERY' || selectedTx.status === 'SUBMITTED' || selectedTx.status === 'DISPUTED' || selectedTx.status === 'INCONCLUSIVE') && (
                 <div className="detail-row">
                   <div className="detail-label">Deadline Expired</div>
                   <p style={{ fontSize: '0.8rem', marginBottom: '0.5rem' }}>
@@ -678,8 +688,18 @@ export default function App() {
                 </div>
               </div>
 
-              {/* SELLER ACTION: Submit proof */}
-              {!selectedTx.settled && account.toLowerCase() === selectedTx.seller.toLowerCase() && !isExpired(selectedTx.deadline) && (
+              {/* Delivery review notice for SUBMITTED state */}
+              {selectedTx.status === 'SUBMITTED' && (
+                <div className="detail-row" style={{ background: '#f0f8ff', border: '1px solid #9bc5ee', padding: '0.85rem' }}>
+                  <div className="detail-label" style={{ color: '#1c5f8a' }}>Delivery Proof Submitted</div>
+                  <p style={{ fontSize: '0.8rem', color: '#1e3a8a', margin: '0.25rem 0' }}>
+                    Seller has submitted delivery evidence. The buyer can review and either release funds cooperatively or file counter-evidence to dispute and freeze evidence for AI adjudication.
+                  </p>
+                </div>
+              )}
+
+              {/* SELLER ACTION: Submit proof (Only allowed once in PENDING_DELIVERY) */}
+              {!selectedTx.settled && account.toLowerCase() === selectedTx.seller.toLowerCase() && selectedTx.status === 'PENDING_DELIVERY' && !selectedTx.seller_evidence.submitted && !isExpired(selectedTx.deadline) && (
                 <div className="detail-row" style={{ background: '#fdfdfd', border: '1px solid var(--border-color)', padding: '1.25rem' }}>
                   <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.1rem', marginBottom: '0.75rem' }}>Seller: Upload Delivery Proof</h3>
                   <div className="form-group">
@@ -718,8 +738,8 @@ export default function App() {
                 </div>
               )}
 
-              {/* BUYER ACTION: File dispute */}
-              {!selectedTx.settled && account.toLowerCase() === selectedTx.buyer.toLowerCase() && (
+              {/* BUYER ACTION: File dispute (Only allowed in SUBMITTED state) */}
+              {!selectedTx.settled && account.toLowerCase() === selectedTx.buyer.toLowerCase() && selectedTx.status === 'SUBMITTED' && !selectedTx.buyer_evidence.submitted && (
                 <div className="detail-row" style={{ background: '#fdfdfd', border: '1px solid var(--border-color)', padding: '1.25rem' }}>
                   <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.1rem', marginBottom: '0.75rem', color: 'var(--danger-color)' }}>Buyer: File Dispute & Counter-Evidence</h3>
                   <div className="form-group">
@@ -758,8 +778,8 @@ export default function App() {
                 </div>
               )}
 
-              {/* AI adjudication resolve trigger */}
-              {!selectedTx.settled && (selectedTx.status === 'SUBMITTED' || selectedTx.status === 'DISPUTED') && (
+              {/* AI adjudication resolve trigger (Strictly available once in DISPUTED state with frozen evidence) */}
+              {!selectedTx.settled && selectedTx.status === 'DISPUTED' && (
                 <div className="detail-row" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', borderBottom: 'none' }}>
                   <button className="btn-primary" style={{ width: '100%', padding: '1rem', background: '#2c2c2a', borderColor: '#2c2c2a' }} onClick={handleResolveAI} disabled={loading}>
                     <Scale size={18} /> Request AI Adjudication Verdict

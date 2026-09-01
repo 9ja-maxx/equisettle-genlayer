@@ -169,6 +169,7 @@ class EquiSettle(gl.Contract):
         """
         Sellers call this to submit proof of delivery (e.g. shipment tracking, files, portals).
         Requires at least 1 proof link and a detailed descriptive statement.
+        Enforces evidence finality: seller can only submit once in PENDING_DELIVERY state.
         """
         if tx_id not in self.transactions:
             raise gl.vm.UserError("Escrow transaction not found")
@@ -176,8 +177,8 @@ class EquiSettle(gl.Contract):
         tx = self.transactions[tx_id]
         if tx.settled:
             raise gl.vm.UserError("Escrow already settled")
-        if tx.status not in ["PENDING_DELIVERY", "DISPUTED", "SUBMITTED"]:
-            raise gl.vm.UserError(f"Cannot submit proof in state: {tx.status}")
+        if tx.seller_evidence.submitted or tx.status != "PENDING_DELIVERY":
+            raise gl.vm.UserError("Seller evidence is already finalized and cannot be overwritten")
 
         sender = _to_address(gl.message.sender_address)
         if sender != tx.seller:
@@ -195,16 +196,14 @@ class EquiSettle(gl.Contract):
                 raise gl.vm.UserError("Invalid evidence URL; must start with http:// or https://")
             cleaned_urls.append(url)
 
-        # Record seller evidence submission
-        tx.seller_evidence = EvidenceSubmission(
-            submitted=True,
-            urls=cleaned_urls,
-            statement=statement.strip(),
-            timestamp=_now_ts()
-        )
-
         # Auto-refund if submitted after deadline (bypasses LLM consensus to enforce deadline rules)
         if _now_ts() > tx.deadline:
+            tx.seller_evidence = EvidenceSubmission(
+                submitted=True,
+                urls=cleaned_urls,
+                statement=statement.strip(),
+                timestamp=_now_ts()
+            )
             tx = self._settle(
                 tx,
                 "NOT_DELIVERED",
@@ -214,6 +213,13 @@ class EquiSettle(gl.Contract):
             self.transactions[tx_id] = tx
             return
 
+        # Record seller evidence submission
+        tx.seller_evidence = EvidenceSubmission(
+            submitted=True,
+            urls=cleaned_urls,
+            statement=statement.strip(),
+            timestamp=_now_ts()
+        )
         tx.status = "SUBMITTED"
         self.transactions[tx_id] = tx
 
@@ -222,6 +228,7 @@ class EquiSettle(gl.Contract):
         """
         Buyers call this to dispute a delivery or present counter-evidence of fraud/non-delivery.
         Ensures a symmetric, two-sided review before the AI judges the dispute.
+        Enforces evidence finality: buyer can only submit once in SUBMITTED state.
         """
         if tx_id not in self.transactions:
             raise gl.vm.UserError("Escrow transaction not found")
@@ -229,6 +236,10 @@ class EquiSettle(gl.Contract):
         tx = self.transactions[tx_id]
         if tx.settled:
             raise gl.vm.UserError("Escrow already settled")
+        if tx.status == "PENDING_DELIVERY":
+            raise gl.vm.UserError("Cannot dispute before seller has submitted delivery evidence")
+        if tx.buyer_evidence.submitted or tx.status != "SUBMITTED":
+            raise gl.vm.UserError("Buyer evidence is already finalized and cannot be overwritten")
         
         sender = _to_address(gl.message.sender_address)
         if sender != tx.buyer:
@@ -244,7 +255,7 @@ class EquiSettle(gl.Contract):
                 raise gl.vm.UserError("Invalid evidence URL; must start with http:// or https://")
             cleaned_urls.append(url)
 
-        # Record buyer evidence submission
+        # Record buyer evidence submission and lock into DISPUTED state (freezing evidence)
         tx.buyer_evidence = EvidenceSubmission(
             submitted=True,
             urls=cleaned_urls,
@@ -252,7 +263,7 @@ class EquiSettle(gl.Contract):
             timestamp=_now_ts()
         )
 
-        # Once a buyer submits counter-evidence, the escrow is flagged as disputed
+        # Explicit dispute condition met: both evidence sets are frozen for resolution
         tx.status = "DISPUTED"
         self.transactions[tx_id] = tx
 
@@ -310,8 +321,8 @@ class EquiSettle(gl.Contract):
     def resolve_escrow(self, tx_id: str) -> None:
         """
         Executes decentralized AI adjudication using validator consensus.
-        Gathers evidence from BOTH sides and parses it symmetrically.
-        Hardens consensus by checking ONLY verdict equivalence to prevent splits.
+        Requires an explicit dispute condition (status == 'DISPUTED') with frozen evidence.
+        Prevents repeated low-confidence rerolls from forcing settlement.
         """
         if tx_id not in self.transactions:
             raise gl.vm.UserError("Escrow transaction not found")
@@ -319,10 +330,16 @@ class EquiSettle(gl.Contract):
         tx = self.transactions[tx_id]
         if tx.settled:
             raise gl.vm.UserError("Escrow already settled")
-        if tx.status not in ["SUBMITTED", "DISPUTED"]:
+        if tx.status == "PENDING_DELIVERY":
+            raise gl.vm.UserError("Cannot adjudicate prematurely: seller has not submitted delivery evidence")
+        if tx.status == "SUBMITTED":
+            raise gl.vm.UserError("Cannot adjudicate prematurely: dispute condition not met (buyer must review and dispute)")
+        if tx.status == "INCONCLUSIVE":
+            raise gl.vm.UserError("AI adjudication was inconclusive; repeated automated rerolls are blocked to prevent forced settlement")
+        if tx.status != "DISPUTED":
             raise gl.vm.UserError(f"Escrow not ready for AI adjudication (current state: {tx.status})")
 
-        # Compile static evidence variables to capture in nondet scopes
+        # Compile frozen static evidence variables to capture in nondet scopes
         description = tx.description
         
         seller_statement = tx.seller_evidence.statement
@@ -413,9 +430,8 @@ class EquiSettle(gl.Contract):
 
         def validator_fn(leader_res) -> bool:
             """
-            Validator check: checks only verdict equivalence and confidence category.
-            By not requiring exact integer matching of confidence score, 
-            it eliminates validation abort splits on minor confidence differences.
+            Validator check: verifies verdict equivalence and confidence threshold categorization.
+            Rejects when verdicts disagree or confidence classifications (actionable vs inconclusive) disagree.
             """
             if not isinstance(leader_res, gl.vm.Return):
                 return False
@@ -471,10 +487,10 @@ class EquiSettle(gl.Contract):
         tx.confidence = bigint(confidence)
         tx.verdict_reason = reason
 
-        # Transition to DISPUTED if confidence is too low to settle
+        # Transition to INCONCLUSIVE if confidence is too low to settle, blocking rerolls
         if confidence < 60:
-            tx.status = "DISPUTED"
-            tx.verdict_reason += " (Adjudication tentative, confidence too low to settle)"
+            tx.status = "INCONCLUSIVE"
+            tx.verdict_reason = f"{reason} (AI confidence {confidence}% too low to settle; automated rerolls blocked)"
             self.transactions[tx_id] = tx
             return
 
@@ -509,7 +525,8 @@ class EquiSettle(gl.Contract):
     @gl.public.write
     def claim_timeout_refund(self, tx_id: str) -> None:
         """
-        Enforce expiration: Buyer claims locked funds if the seller misses the submission deadline.
+        Enforce expiration: Buyer claims locked funds if the seller misses the submission deadline
+        or if the escrow remains unresolved/inconclusive past the deadline.
         Must be called after the deadline timestamp.
         """
         if tx_id not in self.transactions:
@@ -521,7 +538,7 @@ class EquiSettle(gl.Contract):
             raise gl.vm.UserError("Only the buyer or owner can claim a timeout refund")
         if tx.settled:
             raise gl.vm.UserError("Escrow already settled")
-        if tx.status not in ["PENDING_DELIVERY", "DISPUTED"]:
+        if tx.status not in ["PENDING_DELIVERY", "SUBMITTED", "DISPUTED", "INCONCLUSIVE"]:
             raise gl.vm.UserError(f"Cannot claim timeout refund in state: {tx.status}")
         if _now_ts() <= tx.deadline:
             raise gl.vm.UserError("The escrow deadline has not yet passed")
@@ -529,7 +546,7 @@ class EquiSettle(gl.Contract):
         tx = self._settle(
             tx,
             "NOT_DELIVERED",
-            "Seller missed the evidence submission deadline; automatic timeout refund executed.",
+            "Deadline expired without verified delivery; automatic timeout refund executed.",
             100
         )
         self.transactions[tx_id] = tx
