@@ -130,11 +130,11 @@ npm run dev
 ## Live Deployment (Bradbury & StudioNet)
 
 * **Live App URL:** [https://equisettle-alpha.vercel.app/](https://equisettle-alpha.vercel.app/)
-* **Deployed Address:** `0x62e389F82a372E0d105ece7927773553c9088d23`
+* **Deployed Address:** `0xbe749Ac66883b03a3b997FaA242dCae7297B2eF8`
 * **Network:** StudioNet
 
 To configure the live app for your deployed contract, set your contract address in `frontend/.env`:
 ```env
-VITE_CONTRACT_ADDRESS=0x62e389F82a372E0d105ece7927773553c9088d23
+VITE_CONTRACT_ADDRESS=0xbe749Ac66883b03a3b997FaA242dCae7297B2eF8
 ```
 If no address is configured, the application runs in sandbox demo mode with write actions disabled.

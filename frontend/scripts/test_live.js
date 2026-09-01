@@ -1,6 +1,6 @@
 import { createClient, chains } from 'genlayer-js';
 
-const CONTRACT_ADDRESS = '0x62e389F82a372E0d105ece7927773553c9088d23';
+const CONTRACT_ADDRESS = '0xbe749Ac66883b03a3b997FaA242dCae7297B2eF8';
 const DUMMY_ACCOUNT = '0x90F8bf6A479f320ead074411a4B0e7944Ecf8239'; // Standard dummy address
 
 async function main() {
